@@ -31,6 +31,76 @@ public class BoardDAO {
         }
     }
 
+
+
+    public void deleteBoard(int num) {
+
+        try {
+            getCon();
+
+            String sql = "DELETE FROM BOARD WHERE NUM=?";
+            pstmt = con.prepareStatement(sql);
+            pstmt.setInt(1, num);
+            pstmt.executeUpdate();
+            con.close();
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void reWriteBoard(BoardBean bean) {
+        //부모글 그룹과 글레벨 글스탭 읽기
+        int ref = bean.getRef();
+        int re_step = bean.getRe_step();
+        int re_level = bean.getRe_level();
+
+        try {
+            getCon();
+            //부모 글보다 큰 re_level의 값을 전부 1씩 증가
+            String levelsql = "UPDATE BOARD SET RE_LEVEL=RE_LEVEL+1 WHERE REF=? AND RE_LEVEL > ?";
+            pstmt = con.prepareStatement(levelsql);
+            pstmt.setInt(1, ref);
+            pstmt.setInt(2, re_level);
+            pstmt.executeUpdate();
+            //답변글 저장
+            String sql = "INSERT INTO BOARD VALUES(board_seq.NEXTVAL, ?, ?, ?, ?, sysdate, ?, ?, ?, 0, ?)";
+            pstmt = con.prepareStatement(sql);
+            pstmt.setString(1, bean.getWriter());
+            pstmt.setString(2, bean.getEmail());
+            pstmt.setString(3, bean.getSubject());
+            pstmt.setString(4, bean.getPassword());
+            pstmt.setInt(5, ref);
+            pstmt.setInt(6, re_step + 1);//답글이기에 부모 글 + 1
+            pstmt.setInt(7, re_level + 1);//부모의 re_level + 1을 넣어줌(부모 제외 전부 1 증가시켰으므로)
+            pstmt.setString(8, bean.getContent());
+            pstmt.executeUpdate();
+            con.close();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public void updateBoard(BoardBean boardBean) {
+
+        try {
+            getCon();
+            String sql = "UPDATE BOARD SET SUBJECT=?, REG_DATE=sysdate, CONTENT=?";
+
+            pstmt = con.prepareStatement(sql);
+            pstmt.setString(1, boardBean.getSubject());
+            pstmt.setString(2, boardBean.getContent());
+            pstmt.executeUpdate();
+            con.close();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
     public void insertBoard(BoardBean boardBean) {
         int ref = 0; //글 그룹(쿼리를 실행시켜 가장 큰 ref값을 가져운 후 +1)
         int re_step = 1; //자식글 = 부모글
@@ -68,12 +138,55 @@ public class BoardDAO {
         }
     }
 
+    public BoardBean getBoardUpdate(int num) {
+        BoardBean tmp = new BoardBean();
+
+        try {
+            getCon();
+
+            String sql ="SELECT * FROM BOARD WHERE NUM=?";
+
+            pstmt = con.prepareStatement(sql);
+            pstmt.setInt(1, num);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                tmp.setNum(rs.getInt(1));
+                tmp.setWriter(rs.getString(2));
+                tmp.setEmail(rs.getString(3));
+                tmp.setSubject(rs.getString(4));
+                tmp.setPassword(rs.getString(5));
+                tmp.setReg_date(rs.getString(6));
+                tmp.setRef(rs.getInt(7));
+                tmp.setRe_step(rs.getInt(8));
+                tmp.setRe_level(rs.getInt(9));
+                tmp.setReadCount(rs.getInt(10));
+                tmp.setContent(rs.getString(11));
+            }
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return tmp;
+    }
+
+
     public BoardBean getBoard(int num) {
         BoardBean tmp = new BoardBean();
 
         try {
             getCon();
+
             String sql ="SELECT * FROM BOARD WHERE NUM=?";
+
+            String sql2 = "UPDATE BOARD SET readcount = readcount+1 WHERE num=?";
+            pstmt = con.prepareStatement(sql2);
+            pstmt.setInt(1, num);
+            pstmt.executeUpdate();
+
+
             pstmt = con.prepareStatement(sql);
             pstmt.setInt(1, num);
             rs = pstmt.executeQuery();
@@ -132,31 +245,6 @@ public class BoardDAO {
             e.printStackTrace();
         }
         return boardBean;
-    }
-
-    public void addReadCounter(int num) {
-        int cnt = 0;
-        try {
-            getCon();
-            String sql = "SELECT readcount FROM BOARD WHERE num=?";
-            pstmt = con.prepareStatement(sql);
-            pstmt.setInt(1, num);
-            rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                cnt = rs.getInt(1);
-            }
-            cnt += 1;
-
-            String sql2 = "UPDATE BOARD SET readcount=? WHERE num=?";
-            pstmt = con.prepareStatement(sql2);
-            pstmt.setInt(1, cnt);
-            pstmt.setInt(2, num);
-            pstmt.executeUpdate();
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
 }
